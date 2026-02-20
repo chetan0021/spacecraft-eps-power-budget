@@ -53,30 +53,37 @@ dE/dt = η · P_excess
 
 ```mermaid
 flowchart TD
-    SA["☀ Solar Array\nP_solar = 180 W"]
+    %% Styling
+    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
+    classDef bus fill:#fff9c4,stroke:#fbc02d,stroke-width:3px;
+    classDef source fill:#e1f5fe,stroke:#01579b,stroke-width:3px;
+    classDef load fill:#f1f8e9,stroke:#558b2f,stroke-width:2px;
+    classDef critical fill:#ffebee,stroke:#b71c1c,stroke-width:3px;
 
-    EPS["⚡ EPS Bus\nP_EPS,max = 150 W\n(DC regulated)"]
+    SA["☀ Solar Array\nP_solar = 180 W"]:::source
 
-    B28["Bus 28 V\nI = 1.2 A  →  P = 33.6 W"]
-    B12["Bus 12 V\nI = 0.8 A  →  P = 9.6 W"]
-    B5["Bus 5 V\nI = 2.5 A  →  P = 12.5 W"]
-    B3["Bus 3.3 V\nI = 1.5 A  →  P = 4.95 W"]
+    EPS["⚡ EPS Bus\nP_EPS,max = 150 W\n(DC regulated)"]:::highlight
 
-    PNOM["Nominal Load\nP_nominal = 60.65 W"]
-    PEOL["EOL Load\nP_EOL = P_nominal × (1 + α)\n= 60.65 × 1.25 = 75.81 W"]
+    subgraph RegulatedBuses [Regulated Avionics Buses]
+        direction TB
+        B28["Bus 28 V\nI = 1.2 A  →  P = 33.6 W"]:::load
+        B12["Bus 12 V\nI = 0.8 A  →  P = 9.6 W"]:::load
+        B5["Bus 5 V\nI = 2.5 A  →  P = 12.5 W"]:::load
+        B3["Bus 3.3 V\nI = 1.5 A  →  P = 4.95 W"]:::load
+    end
 
-    PEXC["Surplus Power\nP_excess = P_solar − P_EOL\n= 180 − 75.81 = 104.19 W"]
+    PNOM["Nominal Load\nP_nominal = 60.65 W"]:::bus
+    PEOL["EOL Load\nP_EOL = P_nominal × (1 + α)\n= 60.65 × 1.25 = 75.81 W"]:::critical
 
-    BAT["🔋 Battery\nE = 100 Wh  |  SoC₀ = 70%\nP_charge = η · P_excess = 93.77 W\nt_charge ≈ 19 min"]
+    PEXC["Surplus Power\nP_excess = P_solar − P_EOL\n= 104.19 W"]:::source
 
-    SHT["🌡 Shunt Regulator\nResidual thermal dissipation\nQ = P_excess (after battery full)"]
+    BAT["🔋 Battery\nE = 100 Wh  |  SoC₀ = 70%\nP_charge = η · P_excess = 93.77 W\nt_charge ≈ 19 min"]:::highlight
+
+    SHT["Host Shunt Regulator\nResidual thermal dissipation\nQ = P_excess (after battery full)"]:::critical
 
     SA -->|"P_solar = 180 W"| EPS
-    EPS --> B28
-    EPS --> B12
-    EPS --> B5
-    EPS --> B3
-    B28 & B12 & B5 & B3 -->|"Σ P_i"| PNOM
+    EPS --> RegulatedBuses
+    RegulatedBuses -->|"Σ P_i"| PNOM
     PNOM -->|"× (1 + 0.25)"| PEOL
     SA -->|"180 W − 75.81 W"| PEXC
     PEXC -->|"Priority 1 — η = 0.90"| BAT
@@ -119,16 +126,70 @@ flowchart TD
 
 ---
 
+## Spacecraft Physical Architecture
+
+> **Spacecraft Integrated Layout.** This diagram visualizes the physical and logical placement of components within the spacecraft frame.
+
+```mermaid
+flowchart TD
+    %% Styling
+    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
+    classDef hull fill:#f5f5f5,stroke:#333,stroke-width:4px,stroke-dasharray: 5 5;
+    classDef solar fill:#01579b,color:#fff,stroke:#00d4ff,stroke-width:3px;
+    classDef avionics fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef power fill:#fff3e0,stroke:#e65100,stroke-width:3px;
+    classDef thermal fill:#ffebee,stroke:#c62828,stroke-width:2px;
+
+    L_SA[Left Solar Array\n90 W]:::solar
+    R_SA[Right Solar Array\n90 W]:::solar
+
+    subgraph Spacecraft_Core [Spacecraft Main Body]
+        direction TB
+        
+        subgraph Avionics_Bay [Avionics & Control]
+            direction TB
+            OBC[On-Board Computer\nControl Logic]:::avionics
+            COM[Communication\nTransceiver]:::avionics
+        end
+
+        subgraph EPS_Bay [Power Management]
+            direction TB
+            EPS_R[EPS Regulator\n150 W Max]:::power
+            BAT_U[Battery Unit\n100 Wh]:::power
+        end
+
+    end
+
+    SHT_R[Shunt Regulator\nThermal Interface]:::thermal
+
+    L_SA === EPS_R
+    R_SA === EPS_R
+    EPS_R --- BAT_U
+    EPS_R --- Avionics_Bay
+    EPS_R --- SHT_R
+
+    class Spacecraft_Core hull;
+```
+
+---
+
 ## System Power Architecture
 
 ```mermaid
-flowchart LR
-    SolarArray["Solar Array\n180 W"]
-    EPS["EPS Router\n(Priority Cascade)"]
-    AvionicsLoad["Avionics Load\n75.81 W (EOL)"]
-    BatteryCharging["Battery Charging\n(Priority 1)"]
-    ShuntRegulator["Shunt Regulator\n(Thermal — Priority 4)"]
-    Battery["Battery\n100 Wh"]
+flowchart TD
+    %% Styling
+    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
+    classDef nodeStyle fill:#ffffff,stroke:#333,stroke-width:2px;
+    classDef highlight fill:#e3f2fd,stroke:#1565c0,stroke-width:3px;
+
+    SolarArray["Solar Array\n180 W"]:::highlight
+    EPS["EPS Router\n(Priority Cascade)"]:::highlight
+    
+    AvionicsLoad["Avionics Load\n75.81 W (EOL)"]:::nodeStyle
+    BatteryCharging["Battery Charging\n(Priority 1)"]:::nodeStyle
+    ShuntRegulator["Shunt Regulator\n(Thermal — Priority 4)"]:::nodeStyle
+    
+    Battery["Battery\n100 Wh"]:::nodeStyle
 
     SolarArray --> EPS
     EPS --> AvionicsLoad
@@ -144,12 +205,17 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Config["eps/config.py\nSystem constants (SI units)"]
-    PowerModel["eps/power_model.py\nPure mathematical functions"]
-    EPSController["eps/eps_controller.py\nRule-based routing logic"]
-    BatteryModel["eps/battery_model.py\nEuler integration model"]
-    SimulationRunner["simulation_runner.py\nOrchestrator"]
-    Results["Outputs\nConsole report · Balance table · Plots"]
+    %% Styling
+    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
+    classDef logic fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef runner fill:#e8eaf6,stroke:#1a237e,stroke-width:3px;
+
+    Config["eps/config.py\nSystem constants (SI units)"]:::logic
+    PowerModel["eps/power_model.py\nPure mathematical functions"]:::logic
+    EPSController["eps/eps_controller.py\nRule-based routing logic"]:::logic
+    BatteryModel["eps/battery_model.py\nEuler integration model"]:::logic
+    SimulationRunner["simulation_runner.py\nOrchestrator"]:::runner
+    Results["Outputs\nConsole report · Balance table · Plots"]:::runner
 
     Config --> PowerModel
     PowerModel --> EPSController
@@ -164,13 +230,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start(["Start"])
-    LoadParameters["Load constants from config.py"]
-    ComputePowerDemand["Compute nominal bus power\nP_nominal = Σ V_i · I_i"]
-    ApplyEOLConditions["Apply EOL degradation\nP_EOL = P_nominal · (1 + α)"]
-    RoutePower["Route excess solar power\nvia §7 priority cascade"]
-    UpdateBatteryState["Update battery state\ndE/dt = η · P_excess  (Euler)"]
-    GenerateOutputs["Generate outputs\nConsole · Report · Plots"]
+    %% Styling
+    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
+    classDef step fill:#fafafa,stroke:#616161,stroke-width:2px;
+    classDef startEnd fill:#eceff1,stroke:#455a64,stroke-width:3px;
+
+    Start(["Start"]):::startEnd
+    LoadParameters["Load constants from config.py"]:::step
+    ComputePowerDemand["Compute nominal bus power\nP_nominal = Σ V_i · I_i"]:::step
+    ApplyEOLConditions["Apply EOL degradation\nP_EOL = P_nominal · (1 + α)"]:::step
+    RoutePower["Route excess solar power\nvia §7 priority cascade"]:::step
+    UpdateBatteryState["Update battery state\ndE/dt = η · P_excess  (Euler)"]:::step
+    GenerateOutputs["Generate outputs\nConsole · Report · Plots"]:::step
 
     Start --> LoadParameters
     LoadParameters --> ComputePowerDemand
@@ -277,11 +348,22 @@ pytest tests/test_power_calculations.py -v
 ## EPS Power Flow Architecture
 
 ```mermaid
-flowchart LR
-    SA[Solar Array] --> EPS[EPS Power Bus]
-    EPS --> AVL[Avionics Load]
-    EPS --> BAT[Battery Storage]
-    EPS --> SHUNT[Shunt Dissipation]
+flowchart TD
+    %% Styling
+    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
+    classDef highPriority fill:#e3f2fd,stroke:#1565c0,stroke-width:3px;
+    classDef component fill:#ffffff,stroke:#333,stroke-width:2px;
+
+    SA[Solar Array]:::highPriority
+    EPS[EPS Power Bus]:::highPriority
+    AVL[Avionics Load]:::component
+    BAT[Battery Storage]:::component
+    SHUNT[Shunt Dissipation]:::component
+
+    SA --> EPS
+    EPS --> AVL
+    EPS --> BAT
+    EPS --> SHUNT
 ```
 
 - **Solar array provides generation**: Primary source of system power (180 W).
@@ -296,10 +378,14 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A[Compute Nominal Load] --> B[Apply EOL Degradation]
-    B --> C[Compute Excess Solar Power]
-    C --> D[Route Power by Priority]
-    D --> E[Update Battery Energy]
+    %% Styling
+    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
+    classDef nodeStyle fill:#ffffff,stroke:#333,stroke-width:2px;
+
+    A[Compute Nominal Load]:::nodeStyle --> B[Apply EOL Degradation]:::nodeStyle
+    B --> C[Compute Excess Solar Power]:::nodeStyle
+    C --> D[Route Power by Priority]:::nodeStyle
+    D --> E[Update Battery Energy]:::nodeStyle
 ```
 
 Step-by-step deterministic execution sequence:
@@ -331,7 +417,7 @@ The simulation acts as the numerical implementation of the theoretical model def
 - **Energy saturation behavior**: Validation of the shunt transition once the State of Charge (SoC) reaches 100%.
 - **EPS routing correctness**: Compliance with the priority hierarchy across varying system states.
 
----
+---     
 
 ### Submission Repository
 
