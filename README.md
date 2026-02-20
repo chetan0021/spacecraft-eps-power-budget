@@ -335,5 +335,5 @@ The simulation acts as the numerical implementation of the theoretical model def
 
 ### Submission Repository
 
-https://github.com/chetan0021/spacecraft-architecture
+https://github.com/chetan0021/spacecraft-eps-power-budget
 
