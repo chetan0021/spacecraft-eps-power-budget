@@ -22,12 +22,12 @@ This repository contains the analytical power budget evaluation and deterministi
 
 The avionics system operates four regulated DC buses:
 
-| Bus | Voltage | Load Current |
-|-----|---------|-------------|
-| Bus 1 | 28 V | 1.2 A |
-| Bus 2 | 12 V | 0.8 A |
-| Bus 3 | 5 V | 2.5 A |
-| Bus 4 | 3.3 V | 1.5 A |
+| Bus | Voltage | Load Current | Bus Power |
+|-----|---------|-------------|-----------|
+| Bus 1 | 28 V | 1.2 A | 33.6 W |
+| Bus 2 | 12 V | 0.8 A | 9.6 W |
+| Bus 3 | 5 V | 2.5 A | 12.5 W |
+| Bus 4 | 3.3 V | 1.5 A | 4.95 W |
 
 ### Power Budget Objective
 
@@ -39,10 +39,82 @@ Maximum continuous EPS output power: **150 W**. The simulation verifies complian
 
 ### Battery Energy Behavior
 
-Battery state is propagated via forward Euler integration of the governing ODE from §9 of the reference document:
+Battery state is propagated via forward Euler integration of the governing ODE from §9:
 
 ```
 dE/dt = η · P_excess
+```
+
+---
+
+## Diagram 1 — Spacecraft EPS Electrical Power Distribution
+
+> **System-level electrical diagram.** Shows physical buses, voltage rails, current loads, and power values. All quantities in SI units from the engineering document.
+
+```mermaid
+flowchart TD
+    SA["☀ Solar Array\nP_solar = 180 W"]
+
+    EPS["⚡ EPS Bus\nP_EPS,max = 150 W\n(DC regulated)"]
+
+    B28["Bus 28 V\nI = 1.2 A  →  P = 33.6 W"]
+    B12["Bus 12 V\nI = 0.8 A  →  P = 9.6 W"]
+    B5["Bus 5 V\nI = 2.5 A  →  P = 12.5 W"]
+    B3["Bus 3.3 V\nI = 1.5 A  →  P = 4.95 W"]
+
+    PNOM["Nominal Load\nP_nominal = 60.65 W"]
+    PEOL["EOL Load\nP_EOL = P_nominal × (1 + α)\n= 60.65 × 1.25 = 75.81 W"]
+
+    PEXC["Surplus Power\nP_excess = P_solar − P_EOL\n= 180 − 75.81 = 104.19 W"]
+
+    BAT["🔋 Battery\nE = 100 Wh  |  SoC₀ = 70%\nP_charge = η · P_excess = 93.77 W\nt_charge ≈ 19 min"]
+
+    SHT["🌡 Shunt Regulator\nResidual thermal dissipation\nQ = P_excess (after battery full)"]
+
+    SA -->|"P_solar = 180 W"| EPS
+    EPS --> B28
+    EPS --> B12
+    EPS --> B5
+    EPS --> B3
+    B28 & B12 & B5 & B3 -->|"Σ P_i"| PNOM
+    PNOM -->|"× (1 + 0.25)"| PEOL
+    SA -->|"180 W − 75.81 W"| PEXC
+    PEXC -->|"Priority 1 — η = 0.90"| BAT
+    PEXC -->|"Priority 4 — residual"| SHT
+```
+
+---
+
+## Diagram 2 — Battery Charging Physics Process
+
+> **Physics-level process diagram.** Traces the governing equations from excess power through energy integration to state of charge, using document notation.
+
+```mermaid
+flowchart TD
+    P1["P_solar = 180 W\n(Solar array output)"]
+    P2["P_EOL = 75.81 W\n(Avionics EOL demand)"]
+
+    P3["P_excess = P_solar − P_EOL\n= 104.19 W\n(Available surplus)"]
+
+    P4["Charging efficiency η = 0.90\nP_charge = η · P_excess\n= 0.90 × 104.19 = 93.77 W\n(Effective power into battery)"]
+
+    P5["Initial state\nE₀ = E_battery × SoC₀\n= 100 × 0.70 = 70 Wh\nE_remaining = 100 − 70 = 30 Wh"]
+
+    P6["Governing ODE — §9\ndE/dt = η · P_excess\nForward Euler:\nE[n+1] = E[n] + η · P_excess · dt"]
+
+    P7["Analytical charge time\nt = E_remaining / P_charge\n= 30 / 93.77\n≈ 0.32 h  (≈ 19 min)"]
+
+    P8["Terminal condition\nE = E_battery = 100 Wh\nSoC = 1.0  (100%)"]
+
+    P9["Shunt dissipation\nQ = P_excess\n(all surplus → thermal load)"]
+
+    P1 & P2 --> P3
+    P3 --> P4
+    P4 & P5 --> P6
+    P6 -->|"E < 100 Wh"| P6
+    P6 -->|"E = 100 Wh"| P8
+    P5 --> P7
+    P8 --> P9
 ```
 
 ---
