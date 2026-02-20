@@ -259,3 +259,81 @@ python eps_power_flow_simulation.py
 ```powershell
 pytest tests/test_power_calculations.py -v
 ```
+
+---
+
+## Engineering Design Philosophy
+
+- **Implementation is document-driven**: All logic stems directly from the engineering analysis.
+- **Simulation implements equations defined in analysis document**: No deviation from §9 symbolic models.
+- **Deterministic power routing priority**: Rule-based allocation follows a strict hierarchical cascade.
+- **Simulation used for verification, not discovery**: The software serves to numerically validate the theoretical budget.
+- **No optimisation, estimation, or inferred physics**: Only defined system parameters and governing equations are modeled.
+- **Forward Euler integration for battery energy evolution**: Time-stepped propagation of battery state follows $E[n+1] = E[n] + \eta \cdot P_{excess} \cdot dt$.
+- **Architecture reflects spacecraft EPS control logic**: Software modules are partitioned according to physical system functions.
+
+---
+
+## EPS Power Flow Architecture
+
+```mermaid
+flowchart LR
+    SA[Solar Array] --> EPS[EPS Power Bus]
+    EPS --> AVL[Avionics Load]
+    EPS --> BAT[Battery Storage]
+    EPS --> SHUNT[Shunt Dissipation]
+```
+
+- **Solar array provides generation**: Primary source of system power (180 W).
+- **EPS distributes power**: Regulated bus manages routing to all sinks.
+- **Avionics load has highest priority**: Critical system demand must be satisfied first.
+- **Battery stores surplus energy**: Excess solar power is converted to chemical energy (90% efficiency).
+- **Shunt dissipates residual power**: Thermal load when generation exceeds load and storage capacity.
+
+---
+
+## Simulation Control Logic
+
+```mermaid
+flowchart TD
+    A[Compute Nominal Load] --> B[Apply EOL Degradation]
+    B --> C[Compute Excess Solar Power]
+    C --> D[Route Power by Priority]
+    D --> E[Update Battery Energy]
+```
+
+Step-by-step deterministic execution sequence:
+1. **Compute Nominal Load**: Summation of all regulated bus power values ($V \cdot I$).
+2. **Apply EOL Degradation**: Factoring in the 25% end-of-life degradation coefficient.
+3. **Compute Excess Solar Power**: Calculation of the instantaneous delta between generation and avionics demand.
+4. **Route Power by Priority**: Algorithmic distribution of available power based on the §7 strategy.
+5. **Update Battery Energy**: Time-stepped numerical integration of the battery energy storage state.
+
+---
+
+## Deterministic Power Routing Priority
+
+The EPS controller implements a strict modular cascade to manage power flow:
+
+1. **Avionics load supplied from solar**: The solar array generation ($P_{solar}$) is first applied to meet the avionics demand ($P_{EOL}$).
+2. **Remaining power charges battery**: Any surplus power ($P_{excess} = P_{solar} - P_{EOL}$) is routed to the battery with charging efficiency $\eta$.
+3. **Residual power dissipated in shunt**: Once the battery reaches maximum capacity (100 Wh), remaining power is diverted to the shunt regulator as thermal dissipation.
+4. **Battery energy updated using forward Euler**: The energy state of the battery is updated at each timestep using the governing equation $dE/dt = \eta P_{excess}$.
+
+---
+
+## Role of Simulation in Design Verification
+
+The simulation acts as the numerical implementation of the theoretical model defined in §9. It serves to verify:
+
+- **Power balance**: Confirmation that $P_{load} + P_{charge} + P_{shunt} = P_{generation}$.
+- **Battery charging behavior**: Verification of the analytical charge time ($\approx 19$ minutes) through time-stepped integration.
+- **Energy saturation behavior**: Validation of the shunt transition once the State of Charge (SoC) reaches 100%.
+- **EPS routing correctness**: Compliance with the priority hierarchy across varying system states.
+
+---
+
+### Submission Repository
+
+https://github.com/chetan0021/spacecraft-eps-power-budget
+
