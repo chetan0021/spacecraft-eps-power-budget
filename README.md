@@ -53,12 +53,13 @@ dE/dt = η · P_excess
 
 ```mermaid
 flowchart TD
-    %% Styling
-    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
-    classDef bus fill:#fff9c4,stroke:#fbc02d,stroke-width:3px;
-    classDef source fill:#e1f5fe,stroke:#01579b,stroke-width:3px;
-    classDef load fill:#f1f8e9,stroke:#558b2f,stroke-width:2px;
-    classDef critical fill:#ffebee,stroke:#b71c1c,stroke-width:3px;
+    %% Styling and Contrast
+    classDef default font-family:Inter,font-size:18px,color:#333,stroke-width:2px;
+    classDef bus fill:#fff9c4,stroke:#fbc02d,stroke-width:3px,color:#333;
+    classDef source fill:#e1f5fe,stroke:#01579b,stroke-width:3px,color:#333;
+    classDef load fill:#f1f8e9,stroke:#558b2f,stroke-width:2px,color:#333;
+    classDef critical fill:#ffebee,stroke:#b71c1c,stroke-width:3px,color:#333;
+    classDef highlight fill:#fff3e0,stroke:#e65100,stroke-width:3px,color:#333;
 
     SA["☀ Solar Array\nP_solar = 180 W"]:::source
 
@@ -98,22 +99,27 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    P1["P_solar = 180 W\n(Solar array output)"]
-    P2["P_EOL = 75.81 W\n(Avionics EOL demand)"]
+    %% Styling and Contrast
+    classDef default font-family:Inter,font-size:18px,color:#333,stroke-width:2px;
+    classDef step fill:#fafafa,stroke:#616161,stroke-width:2px,color:#333;
+    classDef highlight fill:#e1f5fe,stroke:#01579b,stroke-width:3px,color:#333;
 
-    P3["P_excess = P_solar − P_EOL\n= 104.19 W\n(Available surplus)"]
+    P1["P_solar = 180 W\n(Solar array output)"]:::highlight
+    P2["P_EOL = 75.81 W\n(Avionics EOL demand)"]:::step
 
-    P4["Charging efficiency η = 0.90\nP_charge = η · P_excess\n= 0.90 × 104.19 = 93.77 W\n(Effective power into battery)"]
+    P3["P_excess = P_solar − P_EOL\n= 104.19 W\n(Available surplus)"]:::highlight
 
-    P5["Initial state\nE₀ = E_battery × SoC₀\n= 100 × 0.70 = 70 Wh\nE_remaining = 100 − 70 = 30 Wh"]
+    P4["Charging efficiency η = 0.90\nP_charge = η · P_excess\n= 0.90 × 104.19 = 93.77 W\n(Effective power into battery)"]:::step
 
-    P6["Governing ODE — §9\ndE/dt = η · P_excess\nForward Euler:\nE[n+1] = E[n] + η · P_excess · dt"]
+    P5["Initial state\nE₀ = E_battery × SoC₀\n= 100 × 0.70 = 70 Wh\nE_remaining = 100 − 70 = 30 Wh"]:::step
 
-    P7["Analytical charge time\nt = E_remaining / P_charge\n= 30 / 93.77\n≈ 0.32 h  (≈ 19 min)"]
+    P6["Governing ODE — §9\ndE/dt = η · P_excess\nForward Euler:\nE[n+1] = E[n] + η · P_excess · dt"]:::highlight
 
-    P8["Terminal condition\nE = E_battery = 100 Wh\nSoC = 1.0  (100%)"]
+    P7["Analytical charge time\nt = E_remaining / P_charge\n= 30 / 93.77\n≈ 0.32 h  (≈ 19 min)"]:::step
 
-    P9["Shunt dissipation\nQ = P_excess\n(all surplus → thermal load)"]
+    P8["Terminal condition\nE = E_battery = 100 Wh\nSoC = 1.0  (100%)"]:::highlight
+
+    P9["Shunt dissipation\nQ = P_excess\n(all surplus → thermal load)"]:::step
 
     P1 & P2 --> P3
     P3 --> P4
@@ -126,49 +132,50 @@ flowchart TD
 
 ---
 
-## Spacecraft Physical Architecture
+## Spacecraft Architecture Silhouette
 
-> **Spacecraft Integrated Layout.** This diagram visualizes the physical and logical placement of components within the spacecraft frame.
+> **Symmetry and Modular Design.** A high-fidelity representation of the spacecraft's physical layout, organized by system decks and power generation wings.
 
 ```mermaid
 flowchart TD
-    %% Styling
-    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
-    classDef hull fill:#f5f5f5,stroke:#333,stroke-width:4px,stroke-dasharray: 5 5;
+    %% Styling for Silhouette
+    classDef default font-family:Inter,font-size:18px,color:#333,stroke-width:2px;
+    classDef body fill:#fafafa,stroke:#333,stroke-width:4px,stroke-dasharray: 5 5,color:#333;
     classDef solar fill:#01579b,color:#fff,stroke:#00d4ff,stroke-width:3px;
-    classDef avionics fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef power fill:#fff3e0,stroke:#e65100,stroke-width:3px;
-    classDef thermal fill:#ffebee,stroke:#c62828,stroke-width:2px;
+    classDef deck fill:#f5faff,stroke:#0277bd,stroke-width:2px,color:#333;
+    classDef hardware fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#333;
+    classDef thermal fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#333;
 
-    L_SA[Left Solar Array\n90 W]:::solar
-    R_SA[Right Solar Array\n90 W]:::solar
+    SOLAR_LEFT[Left Solar Array Wing\n90 W Generation]:::solar
+    SOLAR_RIGHT[Right Solar Array Wing\n90 W Generation]:::solar
 
-    subgraph Spacecraft_Core [Spacecraft Main Body]
+    subgraph Spacecraft_Main_Bus [Spacecraft Core Chassis]
         direction TB
-        
-        subgraph Avionics_Bay [Avionics & Control]
-            direction TB
-            OBC[On-Board Computer\nControl Logic]:::avionics
-            COM[Communication\nTransceiver]:::avionics
+
+        subgraph Upper_Deck [Comm & Control Deck]
+            OBC[On-Board Computer\nDual Redundant]:::deck
+            XCVR[UHF/S-Band\nTransceiver]:::deck
         end
 
-        subgraph EPS_Bay [Power Management]
-            direction TB
-            EPS_R[EPS Regulator\n150 W Max]:::power
-            BAT_U[Battery Unit\n100 Wh]:::power
+        subgraph Power_Deck [EPS & Storage Deck]
+            EPS_U[EPS Control Unit\nPriority Router]:::hardware
+            BAT_B[High-Capacity\nLi-Ion Battery]:::hardware
+        end
+
+        subgraph Base_Deck [Thermal Management]
+            SHT_BASE[Shunt Resistor Grid\nRadiator Interface]:::thermal
         end
 
     end
 
-    SHT_R[Shunt Regulator\nThermal Interface]:::thermal
+    SOLAR_LEFT === EPS_U
+    SOLAR_RIGHT === EPS_U
+    EPS_U --- OBC
+    EPS_U --- XCVR
+    EPS_U --- BAT_B
+    EPS_U --- SHT_BASE
 
-    L_SA === EPS_R
-    R_SA === EPS_R
-    EPS_R --- BAT_U
-    EPS_R --- Avionics_Bay
-    EPS_R --- SHT_R
-
-    class Spacecraft_Core hull;
+    class Spacecraft_Main_Bus body;
 ```
 
 ---
@@ -177,10 +184,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    %% Styling
-    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
-    classDef nodeStyle fill:#ffffff,stroke:#333,stroke-width:2px;
-    classDef highlight fill:#e3f2fd,stroke:#1565c0,stroke-width:3px;
+    %% Styling and Contrast
+    classDef default font-family:Inter,font-size:18px,color:#333,stroke-width:2px;
+    classDef nodeStyle fill:#ffffff,stroke:#333,stroke-width:2px,color:#333;
+    classDef highlight fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,color:#333;
 
     SolarArray["Solar Array\n180 W"]:::highlight
     EPS["EPS Router\n(Priority Cascade)"]:::highlight
@@ -205,10 +212,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    %% Styling
-    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
-    classDef logic fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-    classDef runner fill:#e8eaf6,stroke:#1a237e,stroke-width:3px;
+    %% Styling and Contrast
+    classDef default font-family:Inter,font-size:18px,color:#333,stroke-width:2px;
+    classDef logic fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#333;
+    classDef runner fill:#e8eaf6,stroke:#1a237e,stroke-width:3px,color:#333;
 
     Config["eps/config.py\nSystem constants (SI units)"]:::logic
     PowerModel["eps/power_model.py\nPure mathematical functions"]:::logic
@@ -230,10 +237,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    %% Styling
-    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
-    classDef step fill:#fafafa,stroke:#616161,stroke-width:2px;
-    classDef startEnd fill:#eceff1,stroke:#455a64,stroke-width:3px;
+    %% Styling and Contrast
+    classDef default font-family:Inter,font-size:18px,color:#333,stroke-width:2px;
+    classDef step fill:#fafafa,stroke:#616161,stroke-width:2px,color:#333;
+    classDef startEnd fill:#eceff1,stroke:#455a64,stroke-width:3px,color:#333;
 
     Start(["Start"]):::startEnd
     LoadParameters["Load constants from config.py"]:::step
@@ -349,10 +356,10 @@ pytest tests/test_power_calculations.py -v
 
 ```mermaid
 flowchart TD
-    %% Styling
-    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
-    classDef highPriority fill:#e3f2fd,stroke:#1565c0,stroke-width:3px;
-    classDef component fill:#ffffff,stroke:#333,stroke-width:2px;
+    %% Styling and Contrast
+    classDef default font-family:Inter,font-size:18px,color:#333,stroke-width:2px;
+    classDef highPriority fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,color:#333;
+    classDef component fill:#ffffff,stroke:#333,stroke-width:2px,color:#333;
 
     SA[Solar Array]:::highPriority
     EPS[EPS Power Bus]:::highPriority
@@ -378,9 +385,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    %% Styling
-    classDef default font-family:Inter,font-size:16px,color:#333,stroke-width:2px;
-    classDef nodeStyle fill:#ffffff,stroke:#333,stroke-width:2px;
+    %% Styling and Contrast
+    classDef default font-family:Inter,font-size:18px,color:#333,stroke-width:2px;
+    classDef nodeStyle fill:#ffffff,stroke:#333,stroke-width:2px,color:#333;
 
     A[Compute Nominal Load]:::nodeStyle --> B[Apply EOL Degradation]:::nodeStyle
     B --> C[Compute Excess Solar Power]:::nodeStyle
